@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>가상 지도</title>
+  <title>계절밥! 누가 만들어 주세요! </title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -12,12 +12,14 @@
     html, body {
       margin: 0;
       padding: 0;
-      background: #000;
+      height: 100%;
+      background: #f2efe9; /* 지도 느낌 배경색 */
     }
+
     #map {
-      width: 800px;
-      height: 800px;
-      margin: 0 auto;
+      width: 100vw;
+      height: 100vh;
+      background: #f2efe9; /* 여백도 자연스럽게 */
     }
   </style>
 </head>
@@ -26,27 +28,22 @@
 <div id="map"></div>
 
 <script>
-  // 이미지 크기 (중요: 실제 이미지 크기로 맞추기)
   const imageWidth = 1200;
   const imageHeight = 1200;
 
-  // 지도 생성 (좌표계 대신 픽셀 좌표 사용)
   const map = L.map('map', {
     crs: L.CRS.Simple,
-    minZoom: -1
+    minZoom: -1,
+    maxZoom: 2
   });
 
   const bounds = [[0,0], [imageHeight, imageWidth]];
 
-  // 이미지 넣기 (파일명 맞춰주세요)
   const image = L.imageOverlay('map.png', bounds).addTo(map);
 
   map.fitBounds(bounds);
 
-  // =========================
-  // 📍 마커 + 포스타입 링크
-  // =========================
-
+  // ===== 마커 함수 =====
   function addPoint(x, y, title, author, link) {
     L.marker([y, x]).addTo(map)
       .bindTooltip(`${title}<br>${author}`)
@@ -55,9 +52,9 @@
       });
   }
 
-  // 예시 데이터
-  addPoint(600, 400, "작품 제목1", "작가A", "https://postype.com/@example1");
-  addPoint(300, 800, "작품 제목2", "작가B", "https://postype.com/@example2");
+  // 예시
+  addPoint(600, 400, "2026 봄 맛집", "grua", "https://www.postype.com/@2026grua");
+  addPoint(300, 800, "곰도리네 맛집", "grua 별관", "http://grua.kr/");
 
 </script>
 
