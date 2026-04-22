@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>지도 위 포스타입 링크 테스트</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 30px;
+    background: #f3f3f3;
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+
+  .map-wrap {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .map {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: url('./map.jpg') no-repeat center center;
+    background-size: cover;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  }
+
+  .marker {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: #ff5a5a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    cursor: pointer;
+    transform: translate(-50%, -100%);
+  }
+
+  .marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    width: 10px;
+    height: 10px;
+    background: #ff5a5a;
+    transform: translateX(-50%) rotate(45deg);
+    z-index: -1;
+  }
+
+  .tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 12px);
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: nowrap;
+    display: none;
+    pointer-events: none;
+  }
+
+  .marker:hover .tooltip {
+    display: block;
+  }
+
+  .tooltip .title {
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .tooltip .author {
+    opacity: 0.85;
+    font-size: 12px;
+  }
+
+  .guide {
+    margin: 14px 4px 0;
+    color: #555;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="map-wrap">
+  <div class="map">
+
+    <!-- 예시 1: JYP 근처 -->
+    <a
+      class="marker"
+      href="https://www.postype.com/"
+      target="_blank"
+      style="left: 53%; top: 46%;"
+      aria-label="포스타입 링크 1"
+    >
+      <div class="tooltip">
+        <div class="title">포스타입 제목 1</div>
+        <div class="author">작가 이름 1</div>
+      </div>
+    </a>
+
+    <!-- 예시 2: 둔촌동역 쪽 -->
+    <a
+      class="marker"
+      href="https://www.postype.com/"
+      target="_blank"
+      style="left: 82%; top: 28%;"
+      aria-label="포스타입 링크 2"
+    >
+      <div class="tooltip">
+        <div class="title">포스타입 제목 2</div>
+        <div class="author">작가 이름 2</div>
+      </div>
+    </a>
+
+    <!-- 예시 3: 올림픽공원 쪽 -->
+    <a
+      class="marker"
+      href="https://www.postype.com/"
+      target="_blank"
+      style="left: 34%; top: 73%;"
+      aria-label="포스타입 링크 3"
+    >
+      <div class="tooltip">
+        <div class="title">포스타입 제목 3</div>
+        <div class="author">작가 이름 3</div>
+      </div>
+    </a>
+
+  </div>
+
+  <p class="guide">
+    같은 폴더에 지도 이미지를 <strong>map.jpg</strong> 이름으로 넣어두시면 됩니다.
+  </p>
+</div>
+
+</body>
+</html>
