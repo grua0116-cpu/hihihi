@@ -1,99 +1,64 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>계절밥! 누가 만들어 주세요! </title>
+  <meta charset="UTF-8">
+  <title>가상 지도</title>
 
-<style>
-body {
-  margin: 0;
-  background: #000;
-}
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-.map-container {
-  position: relative;
-  width: 100%;
-  max-width: 800px;
-  margin: auto;
-}
-
-.map-container img {
-  width: 100%;
-  display: block;
-}
-
-/* 클릭 영역 */
-.hotspot {
-  position: absolute;
-  cursor: pointer;
-}
-
-/* 툴팁 */
-.tooltip {
-  position: absolute;
-  background: rgba(0,0,0,0.8);
-  color: #fff;
-  padding: 6px 10px;
-  font-size: 12px;
-  border-radius: 6px;
-  white-space: nowrap;
-  display: none;
-  transform: translate(-50%, -120%);
-  pointer-events: none;
-}
-</style>
-
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+    }
+    #map {
+      width: 800px;
+      height: 800px;
+      margin: 0 auto;
+    }
+  </style>
 </head>
 <body>
 
-<div class="map-container">
-
-  <!-- 지도 -->
-  <img src="map.png" alt="지도">
-
-  <!-- 툴팁 -->
-  <div id="tooltip" class="tooltip"></div>
-
-  <!-- 영역 1 -->
-  <div class="hotspot" 
-       style="top:20%; left:30%; width:60px; height:60px;"
-       data-title="아는 사랑 / 사자"
-       data-link="https://www.postype.com/@sajasaja/post/22092033">
-  </div>
-
-  <!-- 영역 2 -->
-  <div class="hotspot" 
-       style="top:50%; left:60%; width:60px; height:60px;"
-       data-title="작품 제목 2 / 작가명"
-       data-link="https://postype.com">
-  </div>
-
-</div>
+<div id="map"></div>
 
 <script>
-const tooltip = document.getElementById("tooltip");
+  // 이미지 크기 (중요: 실제 이미지 크기로 맞추기)
+  const imageWidth = 1200;
+  const imageHeight = 1200;
 
-document.querySelectorAll(".hotspot").forEach(el => {
-
-  el.addEventListener("mouseenter", e => {
-    tooltip.style.display = "block";
-    tooltip.innerText = el.dataset.title;
+  // 지도 생성 (좌표계 대신 픽셀 좌표 사용)
+  const map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -1
   });
 
-  el.addEventListener("mousemove", e => {
-    tooltip.style.left = e.pageX + "px";
-    tooltip.style.top = e.pageY + "px";
-  });
+  const bounds = [[0,0], [imageHeight, imageWidth]];
 
-  el.addEventListener("mouseleave", () => {
-    tooltip.style.display = "none";
-  });
+  // 이미지 넣기 (파일명 맞춰주세요)
+  const image = L.imageOverlay('map.png', bounds).addTo(map);
 
-  el.addEventListener("click", () => {
-    window.open(el.dataset.link, "_blank");
-  });
+  map.fitBounds(bounds);
 
-});
+  // =========================
+  // 📍 마커 + 포스타입 링크
+  // =========================
+
+  function addPoint(x, y, title, author, link) {
+    L.marker([y, x]).addTo(map)
+      .bindTooltip(`${title}<br>${author}`)
+      .on('click', () => {
+        window.open(link, '_blank');
+      });
+  }
+
+  // 예시 데이터
+  addPoint(600, 400, "작품 제목1", "작가A", "https://postype.com/@example1");
+  addPoint(300, 800, "작품 제목2", "작가B", "https://postype.com/@example2");
+
 </script>
 
 </body>
