@@ -393,7 +393,7 @@ async function ensureUser(user) {
   if (userSnap.exists()) {
     myNumber = userSnap.data().number;
     myNumberEl.textContent = pad(myNumber);
-    roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
+    roleTextEl.textContent = isAdmin ? "관리자" : "박성진";
 
     if (isAdmin) {
       roleTextEl.className = "admin-blue";
@@ -455,7 +455,7 @@ async function ensureUser(user) {
   });
 
   myNumberEl.textContent = pad(myNumber);
-  roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
+  roleTextEl.textContent = isAdmin ? "관리자" : "박성진";
 
   if (isAdmin) {
     roleTextEl.className = "admin-blue";
