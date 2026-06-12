@@ -4,22 +4,108 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>연못의 꼬리물기</title>
+
 <style>
-body{margin:0;background:#0b0b0b;color:#e6e6e6;font-family:"Pretendard","Noto Sans KR",sans-serif}
-.wrap{max-width:720px;margin:0 auto;padding:36px 18px}
-.box{border:1px solid #333;background:#111;padding:18px;margin-bottom:18px}
-h1{font-size:24px;margin:0 0 8px}
-.sub,.small{color:#888;font-size:13px;line-height:1.7}
-input,textarea,button{width:100%;box-sizing:border-box;background:#070707;color:#eee;border:1px solid #333;padding:12px;margin-top:10px;font-size:14px}
-textarea{min-height:90px;resize:vertical}
-button{cursor:pointer;background:#181818}
-button:hover{background:#222}
-button:disabled{opacity:.45;cursor:not-allowed}
-.ok{color:#9be28f}.danger{color:#ff6b6b}
-.comment{border-top:1px solid #222;padding-top:12px;margin-top:12px;font-size:13px;line-height:1.7}
-.name{color:#e6e6e6;font-weight:600}
-.system{color:#b85a5a}
-.meta{color:#666;font-size:12px}
+body {
+  margin: 0;
+  background: #0b0b0b;
+  color: #e6e6e6;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+}
+
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 36px 18px;
+}
+
+.box {
+  border: 1px solid #333;
+  background: #111;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+h1 {
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+
+.sub,
+.small {
+  color: #888;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+input,
+textarea,
+button {
+  width: 100%;
+  box-sizing: border-box;
+  background: #070707;
+  color: #eee;
+  border: 1px solid #333;
+  padding: 12px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+button {
+  cursor: pointer;
+  background: #181818;
+}
+
+button:hover {
+  background: #222;
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.ok {
+  color: #9be28f;
+}
+
+.danger {
+  color: #ff6b6b;
+}
+
+.comment {
+  border-top: 1px solid #222;
+  padding-top: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.name {
+  color: #e6e6e6;
+  font-weight: 600;
+}
+
+.system {
+  color: #b85a5a;
+}
+
+.meta {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.notice {
+  color: #777;
+  font-size: 12px;
+  line-height: 1.6;
+}
 </style>
 </head>
 
@@ -43,20 +129,27 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div id="comments" class="small">불러오는 중...</div>
     <button id="loadMoreBtn">더 보기</button>
   </div>
+
+  <div class="notice">
+    ※ 같은 브라우저에서는 같은 번호가 유지됩니다. 브라우저를 바꾸거나 시크릿 모드를 사용하면 다른 번호가 부여될 수 있습니다.
+  </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
 import {
   getAuth,
   signInAnonymously,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 import {
   getFirestore,
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   addDoc,
   collection,
   query,
@@ -93,36 +186,52 @@ const loadMoreBtn = document.getElementById("loadMoreBtn");
 let uid = null;
 let myNumber = null;
 let currentNumber = null;
-let round = 1;
+let currentRound = 1;
 let lastVisible = null;
+let liveComments = [];
 let olderLoaded = [];
+let stateWatcherStarted = false;
+let commentWatcherStarted = false;
 
 const systemSentences = [
-  "관리자: 문장이 기록되었습니다.",
-  "관리자: 다음 번호가 호명되었습니다.",
-  "관리자: 연못의 꼬리가 이어졌습니다.",
-  "관리자: 이전 기록은 보존됩니다.",
-  "관리자: 응답이 확인되었습니다."
+  "문장이 기록되었습니다.",
+  "다음 번호가 호명되었습니다.",
+  "연못의 꼬리가 이어졌습니다.",
+  "이전 기록은 보존됩니다.",
+  "응답이 확인되었습니다."
 ];
 
-function pad(n){
-  return "#" + String(n).padStart(3,"0");
+function pad(n) {
+  return "#" + String(n).padStart(3, "0");
 }
 
-async function ensureUser(user){
-  uid = user.uid;
-  const userRef = doc(db, "pondUsers", uid);
-  const snap = await getDoc(userRef);
+function escapeHTML(str) {
+  return String(str || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
-  if (snap.exists()) {
-    myNumber = snap.data().number;
+async function ensureUser(user) {
+  uid = user.uid;
+
+  const userRef = doc(db, "pondUsers", uid);
+  const existingUser = await getDoc(userRef);
+
+  if (existingUser.exists()) {
+    myNumber = existingUser.data().number;
     myNumberEl.textContent = pad(myNumber);
     return;
   }
 
-  await runTransaction(db, async tx => {
+  await runTransaction(db, async (tx) => {
     const counterRef = doc(db, "pond", "counter");
+    const stateRef = doc(db, "pond", "state");
+
     const counterSnap = await tx.get(counterRef);
+    const stateSnap = await tx.get(stateRef);
 
     let nextNumber = 1;
 
@@ -133,23 +242,21 @@ async function ensureUser(user){
     const numberRef = doc(db, "pondNumbers", String(nextNumber));
 
     tx.set(userRef, {
-      uid,
+      uid: uid,
       number: nextNumber,
       createdAt: serverTimestamp()
     });
 
     tx.set(numberRef, {
-      uid,
+      uid: uid,
       number: nextNumber,
       createdAt: serverTimestamp()
     });
 
     tx.set(counterRef, {
-      nextNumber: nextNumber + 1
+      nextNumber: nextNumber + 1,
+      updatedAt: serverTimestamp()
     }, { merge: true });
-
-    const stateRef = doc(db, "pond", "state");
-    const stateSnap = await tx.get(stateRef);
 
     if (!stateSnap.exists()) {
       tx.set(stateRef, {
@@ -166,24 +273,38 @@ async function ensureUser(user){
   myNumberEl.textContent = pad(myNumber);
 }
 
-function watchState(){
+function watchState() {
+  if (stateWatcherStarted) return;
+  stateWatcherStarted = true;
+
   const stateRef = doc(db, "pond", "state");
 
-  onSnapshot(stateRef, snap => {
-    if (!snap.exists()) return;
+  onSnapshot(stateRef, (snap) => {
+    if (!snap.exists()) {
+      currentNumberEl.textContent = "생성 중...";
+      roundEl.textContent = "-";
+      return;
+    }
 
     const data = snap.data();
+
     currentNumber = data.currentNumber || 1;
-    round = data.round || 1;
+    currentRound = data.round || 1;
 
     currentNumberEl.textContent = pad(currentNumber);
-    roundEl.textContent = round;
+    roundEl.textContent = currentRound;
 
     renderTurnBox();
+  }, (error) => {
+    console.error(error);
+    turnBox.innerHTML = `
+      <strong class="danger">상태 불러오기 실패</strong>
+      <p class="small">${escapeHTML(error.message)}</p>
+    `;
   });
 }
 
-function renderTurnBox(){
+function renderTurnBox() {
   if (!myNumber || !currentNumber) return;
 
   if (myNumber === currentNumber) {
@@ -204,7 +325,7 @@ function renderTurnBox(){
   }
 }
 
-async function submitTurn(){
+async function submitTurn() {
   const commentInput = document.getElementById("commentInput");
   const targetInput = document.getElementById("targetInput");
   const submitBtn = document.getElementById("submitBtn");
@@ -226,9 +347,14 @@ async function submitTurn(){
   submitBtn.textContent = "기록 중...";
 
   try {
-    await runTransaction(db, async tx => {
+    let savedRound = null;
+
+    await runTransaction(db, async (tx) => {
       const stateRef = doc(db, "pond", "state");
+      const targetRef = doc(db, "pondNumbers", String(targetNumber));
+
       const stateSnap = await tx.get(stateRef);
+      const targetSnap = await tx.get(targetRef);
 
       if (!stateSnap.exists()) {
         throw new Error("연못 상태가 없습니다.");
@@ -240,12 +366,11 @@ async function submitTurn(){
         throw new Error("이미 차례가 넘어갔습니다.");
       }
 
-      const targetRef = doc(db, "pondNumbers", String(targetNumber));
-      const targetSnap = await tx.get(targetRef);
-
       if (!targetSnap.exists()) {
         throw new Error("아직 존재하지 않는 번호입니다.");
       }
+
+      savedRound = state.round || 1;
 
       tx.update(stateRef, {
         currentNumber: targetNumber,
@@ -257,116 +382,172 @@ async function submitTurn(){
     await addDoc(collection(db, "pondComments"), {
       type: "user",
       authorNumber: myNumber,
-      targetNumber,
-      content,
-      round,
+      targetNumber: targetNumber,
+      content: content,
+      round: savedRound,
       createdAt: serverTimestamp()
     });
 
-    const randomSentence = systemSentences[Math.floor(Math.random() * systemSentences.length)];
+    const sentence = systemSentences[Math.floor(Math.random() * systemSentences.length)];
 
     await addDoc(collection(db, "pondComments"), {
       type: "system",
       authorName: "관리자",
       authorNumber: null,
-      targetNumber,
-      content: `${randomSentence}\n다음 대상은 ${pad(targetNumber)} 입니다.`,
-      round,
+      targetNumber: targetNumber,
+      content: `${sentence}\n다음 대상은 ${pad(targetNumber)} 입니다.`,
+      round: savedRound,
       createdAt: serverTimestamp()
     });
 
     commentInput.value = "";
     targetInput.value = "";
 
-  } catch (e) {
-    alert(e.message);
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
   }
 
   submitBtn.disabled = false;
   submitBtn.textContent = "다음 사람 호명";
 }
 
-function renderComments(list){
-  if (!list.length && !olderLoaded.length) {
+function renderComments(list) {
+  const all = [...list, ...olderLoaded];
+
+  if (!all.length) {
     commentsEl.textContent = "아직 기록이 없습니다.";
     return;
   }
 
-  const all = [...list, ...olderLoaded];
-
-  commentsEl.innerHTML = all.map(c => {
+  commentsEl.innerHTML = all.map((c) => {
     const name = c.type === "system"
       ? `<span class="name system">관리자</span>`
       : `<span class="name">${pad(c.authorNumber)}</span>`;
 
+    const content = escapeHTML(c.content).replaceAll("\n", "<br>");
+    const target = c.targetNumber ? `<div class="meta">호명: ${pad(c.targetNumber)}</div>` : "";
+    const roundText = c.round ? `<div class="meta">ROUND ${c.round}</div>` : "";
+
     return `
       <div class="comment">
         ${name}<br>
-        ${String(c.content || "").replaceAll("\n","<br>")}
-        ${c.targetNumber ? `<div class="meta">호명: ${pad(c.targetNumber)}</div>` : ""}
+        ${content}
+        ${target}
+        ${roundText}
       </div>
     `;
   }).join("");
 }
 
-let liveComments = [];
+function watchComments() {
+  if (commentWatcherStarted) return;
+  commentWatcherStarted = true;
 
-function watchComments(){
   const q = query(
     collection(db, "pondComments"),
     orderBy("createdAt", "desc"),
     limit(50)
   );
 
-  onSnapshot(q, snap => {
+  onSnapshot(q, (snap) => {
     liveComments = [];
-    snap.forEach(docSnap => {
-      liveComments.push({ id: docSnap.id, ...docSnap.data() });
+
+    snap.forEach((docSnap) => {
+      liveComments.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      });
     });
 
     lastVisible = snap.docs[snap.docs.length - 1] || null;
+
+    if (!lastVisible) {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = "더 보기";
+    } else {
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.textContent = "더 보기";
+    }
+
     renderComments(liveComments);
+  }, (error) => {
+    console.error(error);
+    commentsEl.textContent = "기록 불러오기 실패: " + error.message;
   });
 }
 
-async function loadMore(){
+async function loadMore() {
   if (!lastVisible) return;
 
-  const q = query(
-    collection(db, "pondComments"),
-    orderBy("createdAt", "desc"),
-    startAfter(lastVisible),
-    limit(50)
-  );
+  loadMoreBtn.disabled = true;
+  loadMoreBtn.textContent = "불러오는 중...";
 
-  const snap = await getDocs(q);
+  try {
+    const q = query(
+      collection(db, "pondComments"),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(50)
+    );
 
-  if (snap.empty) {
-    loadMoreBtn.textContent = "더 이상 기록이 없습니다.";
-    loadMoreBtn.disabled = true;
-    return;
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      loadMoreBtn.textContent = "더 이상 기록이 없습니다.";
+      return;
+    }
+
+    snap.forEach((docSnap) => {
+      olderLoaded.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      });
+    });
+
+    lastVisible = snap.docs[snap.docs.length - 1] || lastVisible;
+
+    loadMoreBtn.disabled = false;
+    loadMoreBtn.textContent = "더 보기";
+
+    renderComments(liveComments);
+
+  } catch (error) {
+    console.error(error);
+    loadMoreBtn.disabled = false;
+    loadMoreBtn.textContent = "더 보기";
+    alert(error.message);
   }
-
-  snap.forEach(docSnap => {
-    olderLoaded.push({ id: docSnap.id, ...docSnap.data() });
-  });
-
-  lastVisible = snap.docs[snap.docs.length - 1];
-  renderComments(liveComments);
 }
 
 loadMoreBtn.addEventListener("click", loadMore);
 
-onAuthStateChanged(auth, async user => {
-  if (user) {
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+
+  try {
     await ensureUser(user);
     watchState();
     watchComments();
+  } catch (error) {
+    console.error(error);
+
+    turnBox.innerHTML = `
+      <strong class="danger">접속 실패</strong>
+      <p class="small">${escapeHTML(error.message)}</p>
+    `;
+
+    commentsEl.textContent = "Firebase 연결 실패";
   }
 });
 
-signInAnonymously(auth).catch(err => {
-  alert("익명 로그인 실패: " + err.message);
+signInAnonymously(auth).catch((error) => {
+  console.error(error);
+
+  turnBox.innerHTML = `
+    <strong class="danger">익명 로그인 실패</strong>
+    <p class="small">${escapeHTML(error.message)}</p>
+  `;
 });
 </script>
 </body>
