@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>연못의 꼬리물기</title>
+<style>
+body{margin:0;background:#0b0b0b;color:#e6e6e6;font-family:"Pretendard","Noto Sans KR",sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:36px 18px}
+.box{border:1px solid #333;background:#111;padding:18px;margin-bottom:18px}
+h1{font-size:24px;margin:0 0 8px}
+.sub,.small{color:#888;font-size:13px;line-height:1.7}
+input,textarea,button{width:100%;box-sizing:border-box;background:#070707;color:#eee;border:1px solid #333;padding:12px;margin-top:10px;font-size:14px}
+textarea{min-height:90px;resize:vertical}
+button{cursor:pointer;background:#181818}
+button:hover{background:#222}
+button:disabled{opacity:.45;cursor:not-allowed}
+.ok{color:#9be28f}.danger{color:#ff6b6b}
+.comment{border-top:1px solid #222;padding-top:12px;margin-top:12px;font-size:13px;line-height:1.7}
+.name{color:#e6e6e6;font-weight:600}
+.system{color:#b85a5a}
+.meta{color:#666;font-size:12px}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>연못의 꼬리물기</h1>
+  <div class="sub">호명된 번호만 다음 번호를 부를 수 있습니다.</div>
+
+  <div class="box">
+    <div>내 번호: <span id="myNumber">확인 중...</span></div>
+    <div>현재 호명된 번호: <span id="currentNumber">확인 중...</span></div>
+    <div>현재 라운드: <span id="round">-</span></div>
+  </div>
+
+  <div class="box" id="turnBox">
+    <div class="small">접속 정보를 확인 중입니다.</div>
+  </div>
+
+  <div class="box">
+    <strong>기록</strong>
+    <div id="comments" class="small">불러오는 중...</div>
+    <button id="loadMoreBtn">더 보기</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  onSnapshot,
+  getDocs,
+  runTransaction,
+  serverTimestamp,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBR7ogWqmI1osy45YU7YI_hFcIfjTlk7s4",
+  authDomain: "teamgrua-2d9b9.firebaseapp.com",
+  projectId: "teamgrua-2d9b9",
+  storageBucket: "teamgrua-2d9b9.firebasestorage.app",
+  messagingSenderId: "195186066793",
+  appId: "1:195186066793:web:14eb2976f5f1b7304c69f8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const myNumberEl = document.getElementById("myNumber");
+const currentNumberEl = document.getElementById("currentNumber");
+const roundEl = document.getElementById("round");
+const turnBox = document.getElementById("turnBox");
+const commentsEl = document.getElementById("comments");
+const loadMoreBtn = document.getElementById("loadMoreBtn");
+
+let uid = null;
+let myNumber = null;
+let currentNumber = null;
+let round = 1;
+let lastVisible = null;
+let olderLoaded = [];
+
+const systemSentences = [
+  "관리자: 문장이 기록되었습니다.",
+  "관리자: 다음 번호가 호명되었습니다.",
+  "관리자: 연못의 꼬리가 이어졌습니다.",
+  "관리자: 이전 기록은 보존됩니다.",
+  "관리자: 응답이 확인되었습니다."
+];
+
+function pad(n){
+  return "#" + String(n).padStart(3,"0");
+}
+
+async function ensureUser(user){
+  uid = user.uid;
+  const userRef = doc(db, "pondUsers", uid);
+  const snap = await getDoc(userRef);
+
+  if (snap.exists()) {
+    myNumber = snap.data().number;
+    myNumberEl.textContent = pad(myNumber);
+    return;
+  }
+
+  await runTransaction(db, async tx => {
+    const counterRef = doc(db, "pond", "counter");
+    const counterSnap = await tx.get(counterRef);
+
+    let nextNumber = 1;
+
+    if (counterSnap.exists()) {
+      nextNumber = counterSnap.data().nextNumber || 1;
+    }
+
+    const numberRef = doc(db, "pondNumbers", String(nextNumber));
+
+    tx.set(userRef, {
+      uid,
+      number: nextNumber,
+      createdAt: serverTimestamp()
+    });
+
+    tx.set(numberRef, {
+      uid,
+      number: nextNumber,
+      createdAt: serverTimestamp()
+    });
+
+    tx.set(counterRef, {
+      nextNumber: nextNumber + 1
+    }, { merge: true });
+
+    const stateRef = doc(db, "pond", "state");
+    const stateSnap = await tx.get(stateRef);
+
+    if (!stateSnap.exists()) {
+      tx.set(stateRef, {
+        currentNumber: 1,
+        round: 1,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    myNumber = nextNumber;
+  });
+
+  myNumberEl.textContent = pad(myNumber);
+}
+
+function watchState(){
+  const stateRef = doc(db, "pond", "state");
+
+  onSnapshot(stateRef, snap => {
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+    currentNumber = data.currentNumber || 1;
+    round = data.round || 1;
+
+    currentNumberEl.textContent = pad(currentNumber);
+    roundEl.textContent = round;
+
+    renderTurnBox();
+  });
+}
+
+function renderTurnBox(){
+  if (!myNumber || !currentNumber) return;
+
+  if (myNumber === currentNumber) {
+    turnBox.innerHTML = `
+      <strong class="ok">당신의 차례입니다.</strong>
+      <p class="small">문장을 남긴 뒤, 다음 번호를 호명하십시오.</p>
+      <textarea id="commentInput" placeholder="연못에 남길 문장을 입력하세요."></textarea>
+      <input id="targetInput" type="number" placeholder="다음 번호 입력 예: 17" />
+      <button id="submitBtn">다음 사람 호명</button>
+    `;
+
+    document.getElementById("submitBtn").addEventListener("click", submitTurn);
+  } else {
+    turnBox.innerHTML = `
+      <strong class="danger">아직 당신의 차례가 아닙니다.</strong>
+      <p class="small">현재 ${pad(currentNumber)} 이 응답해야 합니다.</p>
+    `;
+  }
+}
+
+async function submitTurn(){
+  const commentInput = document.getElementById("commentInput");
+  const targetInput = document.getElementById("targetInput");
+  const submitBtn = document.getElementById("submitBtn");
+
+  const content = commentInput.value.trim();
+  const targetNumber = Number(targetInput.value);
+
+  if (!content) {
+    alert("문장을 입력하세요.");
+    return;
+  }
+
+  if (!targetNumber || targetNumber <= 0) {
+    alert("다음 번호를 입력하세요.");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "기록 중...";
+
+  try {
+    await runTransaction(db, async tx => {
+      const stateRef = doc(db, "pond", "state");
+      const stateSnap = await tx.get(stateRef);
+
+      if (!stateSnap.exists()) {
+        throw new Error("연못 상태가 없습니다.");
+      }
+
+      const state = stateSnap.data();
+
+      if (state.currentNumber !== myNumber) {
+        throw new Error("이미 차례가 넘어갔습니다.");
+      }
+
+      const targetRef = doc(db, "pondNumbers", String(targetNumber));
+      const targetSnap = await tx.get(targetRef);
+
+      if (!targetSnap.exists()) {
+        throw new Error("아직 존재하지 않는 번호입니다.");
+      }
+
+      tx.update(stateRef, {
+        currentNumber: targetNumber,
+        round: increment(1),
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    await addDoc(collection(db, "pondComments"), {
+      type: "user",
+      authorNumber: myNumber,
+      targetNumber,
+      content,
+      round,
+      createdAt: serverTimestamp()
+    });
+
+    const randomSentence = systemSentences[Math.floor(Math.random() * systemSentences.length)];
+
+    await addDoc(collection(db, "pondComments"), {
+      type: "system",
+      authorName: "관리자",
+      authorNumber: null,
+      targetNumber,
+      content: `${randomSentence}\n다음 대상은 ${pad(targetNumber)} 입니다.`,
+      round,
+      createdAt: serverTimestamp()
+    });
+
+    commentInput.value = "";
+    targetInput.value = "";
+
+  } catch (e) {
+    alert(e.message);
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = "다음 사람 호명";
+}
+
+function renderComments(list){
+  if (!list.length && !olderLoaded.length) {
+    commentsEl.textContent = "아직 기록이 없습니다.";
+    return;
+  }
+
+  const all = [...list, ...olderLoaded];
+
+  commentsEl.innerHTML = all.map(c => {
+    const name = c.type === "system"
+      ? `<span class="name system">관리자</span>`
+      : `<span class="name">${pad(c.authorNumber)}</span>`;
+
+    return `
+      <div class="comment">
+        ${name}<br>
+        ${String(c.content || "").replaceAll("\n","<br>")}
+        ${c.targetNumber ? `<div class="meta">호명: ${pad(c.targetNumber)}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+let liveComments = [];
+
+function watchComments(){
+  const q = query(
+    collection(db, "pondComments"),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  );
+
+  onSnapshot(q, snap => {
+    liveComments = [];
+    snap.forEach(docSnap => {
+      liveComments.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    lastVisible = snap.docs[snap.docs.length - 1] || null;
+    renderComments(liveComments);
+  });
+}
+
+async function loadMore(){
+  if (!lastVisible) return;
+
+  const q = query(
+    collection(db, "pondComments"),
+    orderBy("createdAt", "desc"),
+    startAfter(lastVisible),
+    limit(50)
+  );
+
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    loadMoreBtn.textContent = "더 이상 기록이 없습니다.";
+    loadMoreBtn.disabled = true;
+    return;
+  }
+
+  snap.forEach(docSnap => {
+    olderLoaded.push({ id: docSnap.id, ...docSnap.data() });
+  });
+
+  lastVisible = snap.docs[snap.docs.length - 1];
+  renderComments(liveComments);
+}
+
+loadMoreBtn.addEventListener("click", loadMore);
+
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    await ensureUser(user);
+    watchState();
+    watchComments();
+  }
+});
+
+signInAnonymously(auth).catch(err => {
+  alert("익명 로그인 실패: " + err.message);
+});
+</script>
+</body>
+</html>
