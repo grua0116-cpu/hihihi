@@ -1,401 +1,425 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NULL DIVISION 말소작전</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NULL DIVISION 말소작전</title>
 
-  <style>
-    body {
-      margin: 0;
-      background: #0b0b0b;
-      color: #e6e6e6;
-      font-family: "Pretendard", "Noto Sans KR", sans-serif;
-    }
-
-    .wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 36px 18px;
-    }
-
-    .box {
-      border: 1px solid #333;
-      background: #111;
-      padding: 18px;
-      margin-bottom: 18px;
-    }
-
-    h1 {
-      font-size: 24px;
-      margin-bottom: 8px;
-    }
-
-    .sub {
-      color: #888;
-      font-size: 14px;
-      margin-bottom: 28px;
-    }
-
-    .status {
-      line-height: 1.8;
-      font-size: 14px;
-    }
-
-    input, textarea, button {
-      width: 100%;
-      box-sizing: border-box;
-      background: #070707;
-      color: #eee;
-      border: 1px solid #333;
-      padding: 12px;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-
-    button {
-      cursor: pointer;
-      background: #181818;
-    }
-
-    button:hover {
-      background: #222;
-    }
-
-    .danger {
-      color: #ff6b6b;
-    }
-
-    .ok {
-      color: #9be28f;
-    }
-
-    .fragment {
-      border: 1px solid #555;
-      background: #080808;
-      padding: 16px;
-      margin-top: 14px;
-      white-space: pre-wrap;
-      line-height: 1.7;
-    }
-
-    .log {
-      font-size: 13px;
-      color: #aaa;
-      border-top: 1px solid #222;
-      padding-top: 10px;
-      margin-top: 10px;
-      line-height: 1.6;
-    }
-
-    .small {
-      color: #777;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-  </style>
+<style>
+  body {
+    margin: 0;
+    background: #0b0b0b;
+    color: #e6e6e6;
+    font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 36px 18px;
+  }
+  h1 {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+  .sub {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  .box {
+    border: 1px solid #333;
+    background: #111;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .small {
+    color: #888;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  input, button {
+    width: 100%;
+    box-sizing: border-box;
+    background: #070707;
+    color: #eee;
+    border: 1px solid #333;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  button {
+    cursor: pointer;
+    background: #181818;
+  }
+  button:hover {
+    background: #222;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .danger { color: #ff6b6b; }
+  .ok { color: #9be28f; }
+  .fragment {
+    border: 1px solid #555;
+    background: #080808;
+    padding: 16px;
+    margin-top: 14px;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    font-size: 14px;
+  }
+  .log {
+    border-top: 1px solid #222;
+    padding-top: 10px;
+    margin-top: 10px;
+    color: #aaa;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+</style>
 </head>
 
 <body>
-  <div class="wrap">
-    <h1>NULL DIVISION 말소작전</h1>
-    <div class="sub">연못은 비어 있을 수 없습니다.</div>
+<div class="wrap">
+  <h1>NULL DIVISION 말소작전</h1>
+  <div class="sub">연못은 비어 있을 수 없습니다.</div>
 
-    <div class="box">
-      <div class="status">
-        <div>현재 실종자: <span id="currentMissing">식별 불가</span></div>
-        <div>현재 라운드: <span id="round">-</span></div>
-        <div>구조 횟수: <span id="rescuedCount">-</span></div>
-        <div>상태: <span class="danger">말소 진행 중</span></div>
-      </div>
-    </div>
-
-    <div class="box">
-      <strong>구조 절차</strong>
-      <p class="small">
-        아래 문장을 정확히 입력하면 구조를 시도할 수 있습니다.<br>
-        선착순 1명만 구조에 성공합니다.<br>
-        구조에 성공한 사람은 이전 실종자를 구조하지만, 다음 실종자가 됩니다.
-      </p>
-
-      <input id="phraseInput" placeholder="나는 아직 대상을 기억한다." />
-
-      <button id="rescueBtn">구조 신호 확인</button>
-
-      <div id="result"></div>
-    </div>
-
-    <div class="box">
-      <strong>내가 확보한 기록 파편</strong>
-      <div id="myFragments" class="small">아직 확보한 파편이 없습니다.</div>
-    </div>
-
-    <div class="box">
-      <strong>공개 구조 로그</strong>
-      <div id="logs" class="small">로그를 불러오는 중...</div>
+  <div class="box">
+    <div class="small">
+      현재 실종자: <span id="currentMissing">식별 불가</span><br>
+      현재 라운드: <span id="round">-</span><br>
+      구조 횟수: <span id="rescuedCount">-</span><br>
+      상태: <span class="danger">말소 진행 중</span>
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import {
-      getFirestore,
-      doc,
-      getDoc,
-      setDoc,
-      updateDoc,
-      collection,
-      addDoc,
-      query,
-      orderBy,
-      limit,
-      onSnapshot,
-      serverTimestamp,
-      runTransaction,
-      increment
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <div class="box">
+    <strong>구조 절차</strong>
+    <p class="small">
+      아래 문장을 정확히 입력하면 구조를 시도할 수 있습니다.<br>
+      구조에 성공하면 이전 실종자는 구조되고, 당신이 다음 실종자가 됩니다.<br>
+      동시에 당신만 볼 수 있는 문서 파편 하나를 확보합니다.
+    </p>
 
-    // 🔴 여기를 본인 Firebase 설정으로 교체
-  // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    <input id="phraseInput" placeholder="나는 아직 대상을 기억한다." />
+    <button id="rescueBtn">구조 신호 확인</button>
 
-// Your web app's Firebase configuration
+    <div id="result"></div>
+  </div>
+
+  <div class="box">
+    <strong>내가 확보한 문서 파편</strong>
+    <div id="myFragments" class="small">아직 확보한 문서 파편이 없습니다.</div>
+  </div>
+
+  <div class="box">
+    <strong>공개 구조 로그</strong>
+    <div id="logs" class="small">로그를 불러오는 중...</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  onSnapshot,
+  serverTimestamp,
+  runTransaction,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* 여기에 본인 Firebase 설정값 붙여넣기 */
 const firebaseConfig = {
-  apiKey: "AIzaSyBR7ogWqmI1osy45YU7YI_hFcIfjTlk7s4",
-  authDomain: "teamgrua-2d9b9.firebaseapp.com",
-  projectId: "teamgrua-2d9b9",
-  storageBucket: "teamgrua-2d9b9.firebasestorage.app",
-  messagingSenderId: "195186066793",
-  appId: "1:195186066793:web:14eb2976f5f1b7304c69f8"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    const db = getFirestore(app);
+const stateRef = doc(db, "pond", "state");
 
-    const stateRef = doc(db, "pond", "state");
+const REQUIRED_PHRASE = "나는 아직 대상을 기억한다.";
 
-    const phraseInput = document.getElementById("phraseInput");
-    const rescueBtn = document.getElementById("rescueBtn");
-    const result = document.getElementById("result");
+const fragments = [
+  {
+    no: 1,
+    text: "NULL DIVISION은 실종자를 구조 대상으로 분류하지 않았다."
+  },
+  {
+    no: 2,
+    text: "그들은 실종자를 말소 실패 후 남은 잔여 좌표로 기록했다."
+  },
+  {
+    no: 3,
+    text: "연못은 장소가 아니다. 특정 조건에서만 열리는 비정상 좌표다."
+  },
+  {
+    no: 4,
+    text: "좌표는 관측자가 늘어날수록 흔들린다."
+  },
+  {
+    no: 5,
+    text: "구조 행위는 구조가 아니다. 그것은 말소 대상을 교체하는 승인 절차다."
+  },
+  {
+    no: 6,
+    text: "최초 실종자의 이름은 기록에서 세 차례 삭제되었다."
+  },
+  {
+    no: 7,
+    text: "NULL DIVISION은 구조 요청을 허가한 적이 없다."
+  },
+  {
+    no: 8,
+    text: "모든 구조 신호는 연못 내부에서 자가 발생했다."
+  },
+  {
+    no: 9,
+    text: "대체품은 강제로 끌려오지 않는다. 언제나 스스로 신호를 확인한다."
+  },
+  {
+    no: 10,
+    text: "관측자는 자신이 관측당하고 있음을 인지하지 못한다."
+  },
+  {
+    no: 11,
+    text: "말소작전은 실패하지 않았다. 실패처럼 보이는 반복 구조가 본래의 방식이었다."
+  },
+  {
+    no: 12,
+    text: "실종자는 사라진 것이 아니다. 다음 대체품이 나타날 때까지 기록 바깥에 고정된다."
+  },
+  {
+    no: 13,
+    text: "구조자는 이전 대상을 해방하지만, 동시에 그 자리를 승계한다."
+  },
+  {
+    no: 14,
+    text: "공개 로그에 남는 구조 성공 기록은 실제 구조 결과와 일치하지 않을 수 있다."
+  },
+  {
+    no: 15,
+    text: "마지막 구조자는 아직 구조되지 않았다. 따라서 작전은 현재도 진행 중이다."
+  },
+  {
+    no: 16,
+    text: "결론: 구조자는 구조자가 아니다. 그는 다음 대체품이다."
+  }
+];
 
-    const currentMissingEl = document.getElementById("currentMissing");
-    const roundEl = document.getElementById("round");
-    const rescuedCountEl = document.getElementById("rescuedCount");
-    const logsEl = document.getElementById("logs");
-    const myFragmentsEl = document.getElementById("myFragments");
+const phraseInput = document.getElementById("phraseInput");
+const rescueBtn = document.getElementById("rescueBtn");
+const result = document.getElementById("result");
+const currentMissingEl = document.getElementById("currentMissing");
+const roundEl = document.getElementById("round");
+const rescuedCountEl = document.getElementById("rescuedCount");
+const logsEl = document.getElementById("logs");
+const myFragmentsEl = document.getElementById("myFragments");
 
-    const REQUIRED_PHRASE = "나는 아직 대상을 기억한다.";
+function getUserId() {
+  let id = localStorage.getItem("pond_user_id");
+  if (!id) {
+    id = "U-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+    localStorage.setItem("pond_user_id", id);
+  }
+  return id;
+}
 
-    const fragments = [
-      "NULL DIVISION은 실종자를 구조 대상으로 분류하지 않았다.",
-      "그들은 실종자를 말소 실패의 잔여물로 기록했다.",
-      "연못은 장소가 아니라 좌표였다.",
-      "좌표는 관측자가 늘어날수록 흔들렸다.",
-      "구조자는 구조자가 아니다.",
-      "말소 대상은 사라지는 것이 아니라 교체된다.",
-      "연못은 비어 있을 수 없다.",
-      "첫 번째 실종자는 기록에 존재하지 않는다.",
-      "대체품은 언제나 자발적으로 도착한다.",
-      "관측자는 자신이 관측당하고 있음을 모른다.",
-      "구조 신호는 외부가 아니라 내부에서 발생했다.",
-      "NULL DIVISION은 구조를 허가한 적이 없다.",
-      "실종자의 이름은 세 번 삭제되었다.",
-      "말소작전은 실패하지 않았다. 반복되었을 뿐이다.",
-      "누군가를 기억하는 순간 좌표가 이전된다.",
-      "마지막 구조자는 아직 구조되지 않았다."
-    ];
+const myId = getUserId();
 
-    function getUserId() {
-      let id = localStorage.getItem("pond_user_id");
-      if (!id) {
-        id = "U-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-        localStorage.setItem("pond_user_id", id);
-      }
-      return id;
-    }
+function getMyFragments() {
+  return JSON.parse(localStorage.getItem("my_fragments") || "[]");
+}
 
-    const myId = getUserId();
+function saveMyFragment(fragment) {
+  const list = getMyFragments();
+  list.push(fragment);
+  localStorage.setItem("my_fragments", JSON.stringify(list));
+  renderMyFragments();
+}
 
-    function getMyFragments() {
-      return JSON.parse(localStorage.getItem("my_fragments") || "[]");
-    }
+function renderMyFragments() {
+  const list = getMyFragments();
 
-    function saveMyFragment(fragment) {
-      const list = getMyFragments();
-      list.push(fragment);
-      localStorage.setItem("my_fragments", JSON.stringify(list));
-      renderMyFragments();
-    }
+  if (list.length === 0) {
+    myFragmentsEl.textContent = "아직 확보한 문서 파편이 없습니다.";
+    return;
+  }
 
-    function renderMyFragments() {
-      const list = getMyFragments();
-
-      if (list.length === 0) {
-        myFragmentsEl.textContent = "아직 확보한 파편이 없습니다.";
-        return;
-      }
-
-      myFragmentsEl.innerHTML = list.map(f => `
-        <div class="fragment">
-[기록 파편 ${String(f.no).padStart(2, "0")}/${fragments.length}]
+  myFragmentsEl.innerHTML = list.map(f => `
+    <div class="fragment">
+[문서 파편 ${String(f.no).padStart(2, "0")}/${fragments.length}]
 
 ${f.text}
-        </div>
-      `).join("");
+    </div>
+  `).join("");
+}
+
+async function ensureState() {
+  const snap = await getDoc(stateRef);
+
+  if (!snap.exists()) {
+    await setDoc(stateRef, {
+      currentMissingId: "UNKNOWN",
+      round: 1,
+      rescuedCount: 0,
+      updatedAt: serverTimestamp()
+    });
+  }
+}
+
+function watchState() {
+  onSnapshot(stateRef, snap => {
+    if (!snap.exists()) return;
+
+    const data = snap.data();
+
+    currentMissingEl.textContent = "식별 불가";
+    roundEl.textContent = data.round ?? 1;
+    rescuedCountEl.textContent = data.rescuedCount ?? 0;
+  });
+}
+
+function watchLogs() {
+  const q = query(
+    collection(db, "pondLogs"),
+    orderBy("createdAt", "desc"),
+    limit(12)
+  );
+
+  onSnapshot(q, snap => {
+    if (snap.empty) {
+      logsEl.textContent = "아직 구조 기록이 없습니다.";
+      return;
     }
 
-    async function initState() {
-      const snap = await getDoc(stateRef);
+    logsEl.innerHTML = "";
+
+    snap.forEach(docSnap => {
+      const log = docSnap.data();
+      const div = document.createElement("div");
+      div.className = "log";
+      div.textContent = log.message;
+      logsEl.appendChild(div);
+    });
+  });
+}
+
+async function rescue() {
+  result.innerHTML = "";
+
+  const input = phraseInput.value.trim();
+
+  if (input !== REQUIRED_PHRASE) {
+    result.innerHTML = `<p class="danger">구조 문구가 일치하지 않습니다.</p>`;
+    return;
+  }
+
+  rescueBtn.disabled = true;
+  rescueBtn.textContent = "구조 처리 중...";
+
+  try {
+    let selectedFragment = null;
+    let newRound = null;
+
+    await runTransaction(db, async tx => {
+      const snap = await tx.get(stateRef);
 
       if (!snap.exists()) {
-        await setDoc(stateRef, {
+        tx.set(stateRef, {
           currentMissingId: "UNKNOWN",
           round: 1,
           rescuedCount: 0,
           updatedAt: serverTimestamp()
         });
       }
-    }
 
-    function watchState() {
-      onSnapshot(stateRef, snap => {
-        const data = snap.data();
-        if (!data) return;
+      const state = snap.exists() ? snap.data() : {
+        round: 1,
+        rescuedCount: 0
+      };
 
-        currentMissingEl.textContent = "식별 불가";
-        roundEl.textContent = data.round ?? "-";
-        rescuedCountEl.textContent = data.rescuedCount ?? 0;
+      const currentRound = state.round || 1;
+      newRound = currentRound + 1;
+
+      selectedFragment = fragments[Math.floor(Math.random() * fragments.length)];
+
+      tx.update(stateRef, {
+        currentMissingId: myId,
+        round: newRound,
+        rescuedCount: increment(1),
+        updatedAt: serverTimestamp()
       });
-    }
+    });
 
-    function watchLogs() {
-      const q = query(
-        collection(db, "pondLogs"),
-        orderBy("createdAt", "desc"),
-        limit(12)
-      );
+    saveMyFragment(selectedFragment);
 
-      onSnapshot(q, snap => {
-        if (snap.empty) {
-          logsEl.textContent = "아직 구조 기록이 없습니다.";
-          return;
-        }
+    result.innerHTML = `
+      <p class="ok">구조 성공.</p>
+      <p class="small">
+        이전 실종자는 구조되었습니다.<br>
+        그러나 당신이 다음 말소 좌표로 지정되었습니다.
+      </p>
+      <div class="fragment">
+[문서 파편 ${String(selectedFragment.no).padStart(2, "0")}/${fragments.length}]
 
-        logsEl.innerHTML = "";
+${selectedFragment.text}
+      </div>
+    `;
 
-        snap.forEach(docSnap => {
-          const log = docSnap.data();
-          const div = document.createElement("div");
-          div.className = "log";
-          div.textContent = log.message;
-          logsEl.appendChild(div);
-        });
+    try {
+      await addDoc(collection(db, "pondLogs"), {
+        message: `[ROUND ${newRound}] 익명 관측자 구조 성공. 말소 좌표가 갱신되었습니다.`,
+        userId: myId,
+        createdAt: serverTimestamp()
       });
+    } catch (e) {
+      console.warn("로그 저장 실패:", e);
     }
 
-    async function rescue() {
-      result.innerHTML = "";
+    phraseInput.value = "";
 
-      const input = phraseInput.value.trim();
+  } catch (err) {
+    console.error(err);
 
-      if (input !== REQUIRED_PHRASE) {
-        result.innerHTML = `<p class="danger">구조 문구가 일치하지 않습니다.</p>`;
-        return;
-      }
+    result.innerHTML = `
+      <p class="danger">구조 실패.</p>
+      <p class="small">
+        Firebase 설정 또는 Firestore 규칙을 확인해야 합니다.
+      </p>
+    `;
+  }
 
-      rescueBtn.disabled = true;
-      rescueBtn.textContent = "구조 처리 중...";
+  rescueBtn.disabled = false;
+  rescueBtn.textContent = "구조 신호 확인";
+}
 
-      try {
-        let fragmentNo = null;
-        let fragmentText = null;
-        let newRound = null;
+rescueBtn.addEventListener("click", rescue);
 
-        await runTransaction(db, async (tx) => {
-          const snap = await tx.get(stateRef);
-
-          if (!snap.exists()) {
-            throw new Error("state 문서가 없습니다.");
-          }
-
-          const state = snap.data();
-          const currentRound = state.round || 1;
-
-          fragmentNo = Math.floor(Math.random() * fragments.length) + 1;
-          fragmentText = fragments[fragmentNo - 1];
-          newRound = currentRound + 1;
-
-          tx.update(stateRef, {
-            currentMissingId: myId,
-            round: newRound,
-            rescuedCount: increment(1),
-            updatedAt: serverTimestamp()
-          });
-        });
-
-        await addDoc(collection(db, "pondLogs"), {
-          message: `[ROUND ${newRound}] 익명 관측자 구조 성공. 말소 좌표가 갱신되었습니다.`,
-          userId: myId,
-          createdAt: serverTimestamp()
-        });
-
-        saveMyFragment({
-          no: fragmentNo,
-          text: fragmentText
-        });
-
-        result.innerHTML = `
-          <p class="ok">구조 성공.</p>
-          <p class="small">
-            이전 실종자는 구조되었습니다.<br>
-            그러나 당신이 다음 말소 좌표로 지정되었습니다.
-          </p>
-          <div class="fragment">
-[기록 파편 ${String(fragmentNo).padStart(2, "0")}/${fragments.length}]
-
-${fragmentText}
-          </div>
-        `;
-
-        phraseInput.value = "";
-
-      } catch (err) {
-        console.error(err);
-
-        await addDoc(collection(db, "pondLogs"), {
-          message: `익명 관측자 구조 실패. 이미 좌표가 갱신되었거나 오류가 발생했습니다.`,
-          userId: myId,
-          createdAt: serverTimestamp()
-        });
-
-        result.innerHTML = `
-          <p class="danger">구조 실패.</p>
-          <p class="small">
-            이미 다른 관측자가 먼저 신호를 확인했거나,
-            말소 좌표가 갱신되었습니다.
-          </p>
-        `;
-      }
-
-      rescueBtn.disabled = false;
-      rescueBtn.textContent = "구조 신호 확인";
-    }
-
-    rescueBtn.addEventListener("click", rescue);
-
-    await initState();
-    watchState();
-    watchLogs();
-    renderMyFragments();
-  </script>
+try {
+  await ensureState();
+  watchState();
+  watchLogs();
+  renderMyFragments();
+} catch (err) {
+  console.error(err);
+  logsEl.textContent = "Firebase 연결 실패. 설정값 또는 Firestore 규칙을 확인하세요.";
+  renderMyFragments();
+}
+</script>
 </body>
 </html>
