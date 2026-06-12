@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>연못에서 꼬리물기 </title>
+<title>연못에서 꼬리물기</title>
 
 <style>
 body {
@@ -110,6 +110,47 @@ button:disabled {
   font-size: 12px;
   margin-top: 4px;
 }
+
+.progress-wrap {
+  display: none;
+}
+
+.progress-title {
+  color: #7fc8ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #070707;
+  border: 1px solid #333;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #7fc8ff;
+  transition: width 0.3s ease;
+}
+
+.progress-percent {
+  color: #7fc8ff;
+  font-size: 13px;
+  margin-top: 10px;
+}
 </style>
 </head>
 
@@ -122,6 +163,18 @@ button:disabled {
     <div>내 번호: <span id="myNumber">확인 중...</span></div>
     <div>현재 호명된 번호: <span id="currentCaller">없음</span></div>
     <div>권한: <span id="roleText">확인 중...</span></div>
+  </div>
+
+  <div class="box progress-wrap" id="adminProgressBox">
+    <div class="progress-title">OBSERVATION STATUS</div>
+    <div class="progress-row">
+      <span>호명 완료</span>
+      <span><span id="calledCount">0</span> / <span id="totalUsers">0</span></span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-percent" id="progressPercent">0%</div>
   </div>
 
   <div class="box" id="writeBox">
@@ -148,6 +201,7 @@ import {
   getFirestore,
   doc,
   getDoc,
+  setDoc,
   collection,
   query,
   orderBy,
@@ -156,7 +210,8 @@ import {
   onSnapshot,
   getDocs,
   runTransaction,
-  serverTimestamp
+  serverTimestamp,
+  increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -182,6 +237,12 @@ const roleTextEl = document.getElementById("roleText");
 const writeBox = document.getElementById("writeBox");
 const commentsEl = document.getElementById("comments");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
+
+const adminProgressBox = document.getElementById("adminProgressBox");
+const calledCountEl = document.getElementById("calledCount");
+const totalUsersEl = document.getElementById("totalUsers");
+const progressFillEl = document.getElementById("progressFill");
+const progressPercentEl = document.getElementById("progressPercent");
 
 let uid = null;
 let myNumber = null;
@@ -216,6 +277,34 @@ function isOnlyNumberCall(text) {
   return /^#\s*\d{1,5}\s*$/.test(String(text).trim());
 }
 
+function updateProgress(totalUsers, calledCount) {
+  if (!isAdmin) return;
+
+  const total = Number(totalUsers || 0);
+  const called = Number(calledCount || 0);
+  const percent = total > 0 ? Math.min(100, (called / total) * 100) : 0;
+
+  calledCountEl.textContent = called;
+  totalUsersEl.textContent = total;
+  progressFillEl.style.width = percent.toFixed(1) + "%";
+  progressPercentEl.textContent = percent.toFixed(1) + "%";
+}
+
+async function syncTotalUsers() {
+  const counterRef = doc(db, "pond", "counter");
+  const stateRef = doc(db, "pond", "state");
+
+  const counterSnap = await getDoc(counterRef);
+
+  if (!counterSnap.exists()) return;
+
+  const totalUsers = Math.max(0, (counterSnap.data().nextNumber || 1) - 1);
+
+  await setDoc(stateRef, {
+    totalUsers
+  }, { merge: true });
+}
+
 async function ensureUser(user) {
   uid = user.uid;
   isAdmin = ADMIN_UIDS.includes(uid);
@@ -227,7 +316,11 @@ async function ensureUser(user) {
     myNumber = userSnap.data().number;
     myNumberEl.textContent = pad(myNumber);
     roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
-    if (isAdmin) roleTextEl.className = "admin-blue";
+    if (isAdmin) {
+      roleTextEl.className = "admin-blue";
+      adminProgressBox.style.display = "block";
+    }
+    await syncTotalUsers();
     return;
   }
 
@@ -267,8 +360,15 @@ async function ensureUser(user) {
     if (!stateSnap.exists()) {
       tx.set(stateRef, {
         currentCaller: null,
+        totalUsers: nextNumber,
+        calledCount: 0,
         updatedAt: serverTimestamp()
       });
+    } else {
+      tx.set(stateRef, {
+        totalUsers: nextNumber,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
     }
 
     myNumber = nextNumber;
@@ -276,7 +376,11 @@ async function ensureUser(user) {
 
   myNumberEl.textContent = pad(myNumber);
   roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
-  if (isAdmin) roleTextEl.className = "admin-blue";
+
+  if (isAdmin) {
+    roleTextEl.className = "admin-blue";
+    adminProgressBox.style.display = "block";
+  }
 }
 
 function watchState() {
@@ -288,12 +392,16 @@ function watchState() {
       currentCallerEl.textContent = "없음";
       await checkUsed();
       renderWriteBox();
+      updateProgress(0, 0);
       return;
     }
 
     const data = snap.data();
+
     currentCaller = data.currentCaller ?? null;
     currentCallerEl.textContent = currentCaller ? pad(currentCaller) : "없음";
+
+    updateProgress(data.totalUsers || 0, data.calledCount || 0);
 
     await checkUsed();
     renderWriteBox();
@@ -405,24 +513,30 @@ async function submitComment() {
 
       let nextCaller = latestCaller;
       let shouldMarkMeUsed = false;
+      let shouldIncreaseCalled = false;
+      let calledNumber = null;
 
       if (isAdmin) {
         if (mentionedNumber) {
           const targetNumberRef = doc(db, "pondNumbers", String(mentionedNumber));
+          const targetCalledRef = doc(db, "pondCalledNumbers", String(mentionedNumber));
+          const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
+
           const targetNumberSnap = await tx.get(targetNumberRef);
+          const targetCalledSnap = await tx.get(targetCalledRef);
+          const targetUsedSnap = await tx.get(targetUsedRef);
 
           if (!targetNumberSnap.exists()) {
             throw new Error("아직 존재하지 않는 번호입니다.");
           }
 
-          const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
-          const targetUsedSnap = await tx.get(targetUsedRef);
-
-          if (targetUsedSnap.exists()) {
-            throw new Error("이미 호명 완료된 번호입니다.");
+          if (targetCalledSnap.exists() || targetUsedSnap.exists()) {
+            throw new Error("이미 호명된 번호입니다.");
           }
 
           nextCaller = mentionedNumber;
+          shouldIncreaseCalled = true;
+          calledNumber = mentionedNumber;
         }
       } else if (latestCaller === myNumber) {
         if (!isOnlyNumberCall(content)) {
@@ -438,21 +552,25 @@ async function submitComment() {
         }
 
         const targetNumberRef = doc(db, "pondNumbers", String(mentionedNumber));
+        const targetCalledRef = doc(db, "pondCalledNumbers", String(mentionedNumber));
+        const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
+
         const targetNumberSnap = await tx.get(targetNumberRef);
+        const targetCalledSnap = await tx.get(targetCalledRef);
+        const targetUsedSnap = await tx.get(targetUsedRef);
 
         if (!targetNumberSnap.exists()) {
           throw new Error("아직 존재하지 않는 번호입니다.");
         }
 
-        const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
-        const targetUsedSnap = await tx.get(targetUsedRef);
-
-        if (targetUsedSnap.exists()) {
-          throw new Error("이미 호명 완료된 번호입니다.");
+        if (targetCalledSnap.exists() || targetUsedSnap.exists()) {
+          throw new Error("이미 호명된 번호입니다.");
         }
 
         nextCaller = mentionedNumber;
         shouldMarkMeUsed = true;
+        shouldIncreaseCalled = true;
+        calledNumber = mentionedNumber;
       }
 
       const commentRef = doc(collection(db, "pondComments"));
@@ -472,10 +590,24 @@ async function submitComment() {
         });
       }
 
-      tx.set(stateRef, {
-        currentCaller: nextCaller,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      if (shouldIncreaseCalled && calledNumber) {
+        const calledRef = doc(db, "pondCalledNumbers", String(calledNumber));
+        tx.set(calledRef, {
+          number: calledNumber,
+          calledAt: serverTimestamp()
+        });
+
+        tx.set(stateRef, {
+          currentCaller: nextCaller,
+          calledCount: increment(1),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } else {
+        tx.set(stateRef, {
+          currentCaller: nextCaller,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
     });
 
     input.value = "";
