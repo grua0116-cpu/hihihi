@@ -524,10 +524,15 @@ loadMoreBtn.addEventListener("click", loadMore);
 
 onAuthStateChanged(auth, async (user) => {
 
-console.log("MY UID:", user.uid);
-alert("MY UID: " + user.uid);
-  
-  if (!user) return;
+
+  onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    alert("아직 로그인 안 됨");
+    return;
+  }
+
+  alert("MY UID: " + user.uid);
+  console.log("MY UID:", user.uid);
 
   try {
     await ensureUser(user);
@@ -545,14 +550,12 @@ alert("MY UID: " + user.uid);
   }
 });
 
-signInAnonymously(auth).catch((error) => {
-  console.error(error);
-
-  turnBox.innerHTML = `
-    <strong class="danger">익명 로그인 실패</strong>
-    <p class="small">${escapeHTML(error.message)}</p>
-  `;
-});
-</script>
-</body>
-</html>
+signInAnonymously(auth)
+  .then((result) => {
+    alert("익명 로그인 성공 UID: " + result.user.uid);
+    console.log("익명 로그인 성공 UID:", result.user.uid);
+  })
+  .catch((error) => {
+    alert("익명 로그인 실패: " + error.message);
+    console.error(error);
+  });
