@@ -43,7 +43,6 @@ h1 {
   line-height: 1.7;
 }
 
-input,
 textarea,
 button {
   width: 100%;
@@ -149,7 +148,6 @@ import {
   getFirestore,
   doc,
   getDoc,
-  setDoc,
   collection,
   query,
   orderBy,
@@ -212,6 +210,10 @@ function extractNumber(text) {
   const match = String(text).match(/#\s*(\d{1,5})/);
   if (!match) return null;
   return Number(match[1]);
+}
+
+function isOnlyNumberCall(text) {
+  return /^#\s*\d{1,5}\s*$/.test(String(text).trim());
 }
 
 async function ensureUser(user) {
@@ -284,6 +286,7 @@ function watchState() {
     if (!snap.exists()) {
       currentCaller = null;
       currentCallerEl.textContent = "없음";
+      await checkUsed();
       renderWriteBox();
       return;
     }
@@ -294,6 +297,12 @@ function watchState() {
 
     await checkUsed();
     renderWriteBox();
+  }, (error) => {
+    console.error(error);
+    writeBox.innerHTML = `
+      <strong class="danger">상태 불러오기 실패</strong>
+      <p class="small">${escapeHTML(error.message)}</p>
+    `;
   });
 }
 
@@ -313,10 +322,10 @@ function renderWriteBox() {
     writeBox.innerHTML = `
       <strong class="admin-blue">관리자 모드</strong>
       <p class="small">
-        관리자 댓글은 언제든 작성 가능합니다.<br>
-        댓글 안에 #번호를 쓰면 그 번호가 현재 호명 번호로 설정됩니다.
+        관리자는 언제든 댓글을 작성할 수 있습니다.<br>
+        댓글에 #번호를 포함하면 그 번호가 현재 호명 번호가 됩니다.
       </p>
-      <textarea id="commentInput" placeholder="관리자 댓글을 입력하세요. 예: #014"></textarea>
+      <textarea id="commentInput" placeholder="관리자 댓글 입력. 예: #014"></textarea>
       <button id="submitBtn">관리자 댓글 등록</button>
     `;
 
@@ -337,9 +346,9 @@ function renderWriteBox() {
       <strong class="ok">당신이 호명되었습니다.</strong>
       <p class="small">
         다음 번호만 호명할 수 있습니다.<br>
-        댓글 안에 반드시 #번호를 포함해야 합니다.
+        예: #027
       </p>
-      <textarea id="commentInput" placeholder="예: #027"></textarea>
+      <textarea id="commentInput" placeholder="#027"></textarea>
       <button id="submitBtn">다음 번호 호명</button>
     `;
 
@@ -351,7 +360,7 @@ function renderWriteBox() {
     <strong>댓글 작성 가능</strong>
     <p class="small">
       아직 호명되지 않았습니다. 자유 댓글을 남길 수 있습니다.<br>
-      단, 당신의 댓글에 #번호가 있어도 호명으로 처리되지 않습니다.
+      단, 자유 댓글에 #번호를 적어도 호명으로 처리되지 않습니다.
     </p>
     <textarea id="commentInput" placeholder="댓글을 입력하세요."></textarea>
     <button id="submitBtn">댓글 등록</button>
@@ -395,7 +404,7 @@ async function submitComment() {
       }
 
       let nextCaller = latestCaller;
-      let shouldMarkUsed = false;
+      let shouldMarkMeUsed = false;
 
       if (isAdmin) {
         if (mentionedNumber) {
@@ -416,8 +425,12 @@ async function submitComment() {
           nextCaller = mentionedNumber;
         }
       } else if (latestCaller === myNumber) {
+        if (!isOnlyNumberCall(content)) {
+          throw new Error("호명된 사람은 다음 번호만 입력할 수 있습니다. 예: #027");
+        }
+
         if (!mentionedNumber) {
-          throw new Error("다음 번호를 #027 형식으로 호명해야 합니다.");
+          throw new Error("다음 번호를 #027 형식으로 입력하세요.");
         }
 
         if (mentionedNumber === myNumber) {
@@ -439,7 +452,7 @@ async function submitComment() {
         }
 
         nextCaller = mentionedNumber;
-        shouldMarkUsed = true;
+        shouldMarkMeUsed = true;
       }
 
       const commentRef = doc(collection(db, "pondComments"));
@@ -452,7 +465,7 @@ async function submitComment() {
         createdAt: serverTimestamp()
       });
 
-      if (shouldMarkUsed) {
+      if (shouldMarkMeUsed) {
         tx.set(myUsedRef, {
           number: myNumber,
           usedAt: serverTimestamp()
@@ -485,9 +498,9 @@ function renderComments() {
   }
 
   commentsEl.innerHTML = all.map((c) => {
-    const isAdminComment = c.type === "admin";
+    const admin = c.type === "admin";
 
-    const author = isAdminComment
+    const author = admin
       ? `<span class="author admin">관리자</span>`
       : `<span class="author">${pad(c.authorNumber)}</span>`;
 
@@ -524,11 +537,7 @@ function watchComments() {
 
     renderComments();
 
-    if (!lastVisible) {
-      loadMoreBtn.disabled = true;
-    } else {
-      loadMoreBtn.disabled = false;
-    }
+    loadMoreBtn.disabled = !lastVisible;
   }, (error) => {
     console.error(error);
     commentsEl.textContent = "기록 불러오기 실패: " + error.message;
