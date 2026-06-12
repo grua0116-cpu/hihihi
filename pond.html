@@ -6,169 +6,248 @@
 <title>연못에서 꼬리물기</title>
 
 <style>
-body {
-  margin: 0;
-  background: #0b0b0b;
-  color: #e6e6e6;
-  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+:root{
+  --bg:#050505;
+  --panel:#0e0e0e;
+  --panel2:#111;
+  --line:#303030;
+  --line2:#1f1f1f;
+  --text:#e6e6e6;
+  --muted:#7d7d7d;
+  --faint:#555;
+  --blue:#7fc8ff;
+  --blue2:#b7e3ff;
+  --green:#9be28f;
+  --red:#ff6b6b;
 }
 
-.wrap {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 36px 18px;
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at top, rgba(127,200,255,0.07), transparent 32%),
+    linear-gradient(180deg,#070707 0%,#0b0b0b 48%,#030303 100%);
+  color:var(--text);
+  font-family:"Pretendard","Noto Sans KR",sans-serif;
 }
 
-h1 {
-  font-size: 24px;
-  margin: 0 0 8px;
+.wrap{
+  max-width:760px;
+  margin:0 auto;
+  padding:34px 18px 48px;
 }
 
-.sub {
-  color: #888;
-  font-size: 13px;
-  margin-bottom: 28px;
+.classification{
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:0.18em;
+  border-bottom:1px solid var(--line2);
+  padding-bottom:14px;
+  margin-bottom:22px;
 }
 
-.box {
-  border: 1px solid #333;
-  background: #111;
-  padding: 18px;
-  margin-bottom: 18px;
+h1{
+  font-size:26px;
+  margin:0 0 8px;
+  letter-spacing:0.06em;
+  font-weight:600;
 }
 
-.small {
-  color: #888;
-  font-size: 13px;
-  line-height: 1.7;
+.sub{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.8;
+  margin-bottom:24px;
+}
+
+.bar{
+  height:10px;
+  background:var(--text);
+  opacity:.85;
+  margin:18px 0;
+}
+
+.box{
+  border:1px solid var(--line);
+  background:rgba(17,17,17,.92);
+  padding:18px;
+  margin-bottom:18px;
+  box-shadow:0 0 28px rgba(0,0,0,.34);
+}
+
+.status-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:0;
+}
+
+.status-row{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  border-top:1px solid var(--line2);
+  padding:12px 0;
+  font-size:13px;
+}
+
+.status-row:first-child{border-top:0;padding-top:0}
+
+.key{
+  color:var(--muted);
+  letter-spacing:.08em;
+}
+
+.value{
+  color:var(--text);
+  text-align:right;
+  font-weight:600;
+}
+
+.small{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.7;
 }
 
 textarea,
-button {
-  width: 100%;
-  box-sizing: border-box;
-  background: #070707;
-  color: #eee;
-  border: 1px solid #333;
-  padding: 12px;
-  margin-top: 10px;
-  font-size: 14px;
+button{
+  width:100%;
+  background:#070707;
+  color:var(--text);
+  border:1px solid var(--line);
+  padding:12px;
+  margin-top:10px;
+  font-size:14px;
+  font-family:inherit;
 }
 
-textarea {
-  min-height: 100px;
-  resize: vertical;
+textarea{
+  min-height:104px;
+  resize:vertical;
 }
 
-button {
-  cursor: pointer;
-  background: #181818;
+button{
+  cursor:pointer;
+  background:#181818;
+  letter-spacing:.04em;
 }
 
-button:hover {
-  background: #222;
+button:hover{background:#222}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+.ok{color:var(--green)}
+.danger{color:var(--red)}
+.admin-blue{color:var(--blue);font-weight:700}
+
+.section-title{
+  color:var(--blue2);
+  font-size:12px;
+  letter-spacing:.14em;
+  margin-bottom:12px;
+  font-weight:700;
 }
 
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.progress-wrap{display:none}
+
+.progress-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:10px;
 }
 
-.ok {
-  color: #9be28f;
+.progress-bar{
+  width:100%;
+  height:12px;
+  background:#070707;
+  border:1px solid var(--line);
+  overflow:hidden;
 }
 
-.danger {
-  color: #ff6b6b;
+.progress-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#417899,#7fc8ff,#b7e3ff);
+  transition:width .3s ease;
 }
 
-.admin-blue {
-  color: #7fc8ff;
-  font-weight: 700;
+.progress-percent{
+  color:var(--blue);
+  font-size:13px;
+  margin-top:10px;
+  letter-spacing:.08em;
 }
 
-.comment {
-  border-top: 1px solid #222;
-  padding-top: 12px;
-  margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.7;
+.comment{
+  border-left:2px solid var(--line);
+  padding:12px 0 12px 14px;
+  margin-top:12px;
+  font-size:13px;
+  line-height:1.75;
 }
 
-.author {
-  color: #e6e6e6;
-  font-weight: 600;
+.author{
+  color:var(--text);
+  font-weight:700;
+  letter-spacing:.04em;
 }
 
-.author.admin {
-  color: #7fc8ff;
-  font-weight: 700;
+.author.admin{
+  color:var(--blue);
+  font-weight:800;
 }
 
-.meta {
-  color: #666;
-  font-size: 12px;
-  margin-top: 4px;
+.logbox{
+  border-top:1px solid var(--line2);
+  margin-top:10px;
+  padding-top:4px;
 }
 
-.progress-wrap {
-  display: none;
-}
-
-.progress-title {
-  color: #7fc8ff;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  margin-bottom: 12px;
-}
-
-.progress-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #888;
-  margin-bottom: 10px;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 12px;
-  background: #070707;
-  border: 1px solid #333;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  width: 0%;
-  background: #7fc8ff;
-  transition: width 0.3s ease;
-}
-
-.progress-percent {
-  color: #7fc8ff;
-  font-size: 13px;
-  margin-top: 10px;
+.bottom{
+  color:var(--faint);
+  font-size:11px;
+  letter-spacing:.14em;
+  border-top:1px solid var(--line2);
+  padding-top:14px;
+  margin-top:24px;
 }
 </style>
 </head>
 
 <body>
 <div class="wrap">
-  <h1>연못에서 꼬리물기 </h1>
+  <div class="classification">[DOCUMENT CLASSIFICATION : OBSERVATION LOG]</div>
+
+  <h1>연못에서 꼬리물기</h1>
   <div class="sub">호명된 사람은 다음 번호만 호명할 수 있습니다. 마지막 번호의 ■■■은 ■■■을 구할 수 있습니다.</div>
 
+  <div class="bar"></div>
+
   <div class="box">
-    <div>내 번호: <span id="myNumber">확인 중...</span></div>
-    <div>현재 호명된 번호: <span id="currentCaller">없음</span></div>
-    <div>권한: <span id="roleText">확인 중...</span></div>
+    <div class="section-title">POND STATUS</div>
+    <div class="status-grid">
+      <div class="status-row">
+        <div class="key">YOUR NUMBER</div>
+        <div class="value"><span id="myNumber">확인 중...</span></div>
+      </div>
+      <div class="status-row">
+        <div class="key">CURRENT CALL</div>
+        <div class="value"><span id="currentCaller">없음</span></div>
+      </div>
+      <div class="status-row">
+        <div class="key">ACCESS ROLE</div>
+        <div class="value"><span id="roleText">확인 중...</span></div>
+      </div>
+    </div>
   </div>
 
   <div class="box progress-wrap" id="adminProgressBox">
-    <div class="progress-title">OBSERVATION STATUS</div>
+    <div class="section-title">OBSERVATION STATUS</div>
     <div class="progress-row">
-      <span>호명 완료</span>
+      <span>CALLED</span>
       <span><span id="calledCount">0</span> / <span id="totalUsers">0</span></span>
     </div>
     <div class="progress-bar">
@@ -182,10 +261,12 @@ button:disabled {
   </div>
 
   <div class="box">
-    <strong>기록</strong>
+    <div class="section-title">LOG ENTRY</div>
     <div id="comments" class="small">불러오는 중...</div>
     <button id="loadMoreBtn">더 보기</button>
   </div>
+
+  <div class="bottom">AUTHORIZED PERSONNEL ONLY / CONTINUUM AUTHORITY</div>
 </div>
 
 <script type="module">
@@ -295,14 +376,11 @@ async function syncTotalUsers() {
   const stateRef = doc(db, "pond", "state");
 
   const counterSnap = await getDoc(counterRef);
-
   if (!counterSnap.exists()) return;
 
   const totalUsers = Math.max(0, (counterSnap.data().nextNumber || 1) - 1);
 
-  await setDoc(stateRef, {
-    totalUsers
-  }, { merge: true });
+  await setDoc(stateRef, { totalUsers }, { merge: true });
 }
 
 async function ensureUser(user) {
@@ -316,10 +394,12 @@ async function ensureUser(user) {
     myNumber = userSnap.data().number;
     myNumberEl.textContent = pad(myNumber);
     roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
+
     if (isAdmin) {
       roleTextEl.className = "admin-blue";
       adminProgressBox.style.display = "block";
     }
+
     await syncTotalUsers();
     return;
   }
@@ -428,6 +508,7 @@ function renderWriteBox() {
 
   if (isAdmin) {
     writeBox.innerHTML = `
+      <div class="section-title">ADMIN INPUT</div>
       <strong class="admin-blue">관리자 모드</strong>
       <p class="small">
         관리자는 언제든 댓글을 작성할 수 있습니다.<br>
@@ -443,6 +524,7 @@ function renderWriteBox() {
 
   if (isUsed) {
     writeBox.innerHTML = `
+      <div class="section-title">ACCESS STATUS</div>
       <strong class="danger">이미 호명 완료되었습니다.</strong>
       <p class="small">당신은 더 이상 댓글을 작성할 수 없습니다.</p>
     `;
@@ -451,6 +533,7 @@ function renderWriteBox() {
 
   if (currentCaller === myNumber) {
     writeBox.innerHTML = `
+      <div class="section-title">CURRENT CALLER</div>
       <strong class="ok">당신이 호명되었습니다.</strong>
       <p class="small">
         다음 번호만 호명할 수 있습니다.<br>
@@ -465,6 +548,7 @@ function renderWriteBox() {
   }
 
   writeBox.innerHTML = `
+    <div class="section-title">COMMENT INPUT</div>
     <strong>댓글 작성 가능</strong>
     <p class="small">
       아직 호명되지 않았습니다. 자유 댓글을 남길 수 있습니다.<br>
@@ -611,7 +695,6 @@ async function submitComment() {
     });
 
     input.value = "";
-
   } catch (error) {
     console.error(error);
     alert(error.message);
