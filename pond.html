@@ -19,6 +19,17 @@ body {
   padding: 36px 18px;
 }
 
+h1 {
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+
+.sub {
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+
 .box {
   border: 1px solid #333;
   background: #111;
@@ -26,12 +37,6 @@ body {
   margin-bottom: 18px;
 }
 
-h1 {
-  font-size: 24px;
-  margin: 0 0 8px;
-}
-
-.sub,
 .small {
   color: #888;
   font-size: 13px;
@@ -52,7 +57,7 @@ button {
 }
 
 textarea {
-  min-height: 90px;
+  min-height: 100px;
   resize: vertical;
 }
 
@@ -66,7 +71,7 @@ button:hover {
 }
 
 button:disabled {
-  opacity: .45;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -78,6 +83,11 @@ button:disabled {
   color: #ff6b6b;
 }
 
+.admin-blue {
+  color: #7fc8ff;
+  font-weight: 700;
+}
+
 .comment {
   border-top: 1px solid #222;
   padding-top: 12px;
@@ -86,13 +96,14 @@ button:disabled {
   line-height: 1.7;
 }
 
-.name {
+.author {
   color: #e6e6e6;
   font-weight: 600;
 }
 
-.system {
-  color: #b85a5a;
+.author.admin {
+  color: #7fc8ff;
+  font-weight: 700;
 }
 
 .meta {
@@ -100,27 +111,21 @@ button:disabled {
   font-size: 12px;
   margin-top: 4px;
 }
-
-.notice {
-  color: #777;
-  font-size: 12px;
-  line-height: 1.6;
-}
 </style>
 </head>
 
 <body>
 <div class="wrap">
   <h1>연못의 꼬리물기</h1>
-  <div class="sub">호명된 번호만 다음 번호를 부를 수 있습니다.</div>
+  <div class="sub">호명된 사람은 다음 번호만 호명할 수 있습니다.</div>
 
   <div class="box">
     <div>내 번호: <span id="myNumber">확인 중...</span></div>
-    <div>현재 호명된 번호: <span id="currentNumber">확인 중...</span></div>
-    <div>현재 라운드: <span id="round">-</span></div>
+    <div>현재 호명된 번호: <span id="currentCaller">없음</span></div>
+    <div>권한: <span id="roleText">확인 중...</span></div>
   </div>
 
-  <div class="box" id="turnBox">
+  <div class="box" id="writeBox">
     <div class="small">접속 정보를 확인 중입니다.</div>
   </div>
 
@@ -128,10 +133,6 @@ button:disabled {
     <strong>기록</strong>
     <div id="comments" class="small">불러오는 중...</div>
     <button id="loadMoreBtn">더 보기</button>
-  </div>
-
-  <div class="notice">
-    ※ 같은 브라우저에서는 같은 번호가 유지됩니다. 브라우저를 바꾸거나 시크릿 모드를 사용하면 다른 번호가 부여될 수 있습니다.
   </div>
 </div>
 
@@ -149,8 +150,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  addDoc,
   collection,
   query,
   orderBy,
@@ -159,8 +158,7 @@ import {
   onSnapshot,
   getDocs,
   runTransaction,
-  serverTimestamp,
-  increment
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -172,34 +170,30 @@ const firebaseConfig = {
   appId: "1:195186066793:web:14eb2976f5f1b7304c69f8"
 };
 
+const ADMIN_UIDS = [
+  "MpLrmXujB7VKOKGAhWYG7IqAx9Z2"
+];
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 const myNumberEl = document.getElementById("myNumber");
-const currentNumberEl = document.getElementById("currentNumber");
-const roundEl = document.getElementById("round");
-const turnBox = document.getElementById("turnBox");
+const currentCallerEl = document.getElementById("currentCaller");
+const roleTextEl = document.getElementById("roleText");
+const writeBox = document.getElementById("writeBox");
 const commentsEl = document.getElementById("comments");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 
 let uid = null;
 let myNumber = null;
-let currentNumber = null;
-let currentRound = 1;
-let lastVisible = null;
-let liveComments = [];
-let olderLoaded = [];
-let stateWatcherStarted = false;
-let commentWatcherStarted = false;
+let isAdmin = false;
+let currentCaller = null;
+let isUsed = false;
 
-const systemSentences = [
-  "문장이 기록되었습니다.",
-  "다음 번호가 호명되었습니다.",
-  "연못의 꼬리가 이어졌습니다.",
-  "이전 기록은 보존됩니다.",
-  "응답이 확인되었습니다."
-];
+let liveComments = [];
+let olderComments = [];
+let lastVisible = null;
 
 function pad(n) {
   return "#" + String(n).padStart(3, "0");
@@ -214,15 +208,24 @@ function escapeHTML(str) {
     .replaceAll("'", "&#039;");
 }
 
+function extractNumber(text) {
+  const match = String(text).match(/#\s*(\d{1,5})/);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
 async function ensureUser(user) {
   uid = user.uid;
+  isAdmin = ADMIN_UIDS.includes(uid);
 
   const userRef = doc(db, "pondUsers", uid);
-  const existingUser = await getDoc(userRef);
+  const userSnap = await getDoc(userRef);
 
-  if (existingUser.exists()) {
-    myNumber = existingUser.data().number;
+  if (userSnap.exists()) {
+    myNumber = userSnap.data().number;
     myNumberEl.textContent = pad(myNumber);
+    roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
+    if (isAdmin) roleTextEl.className = "admin-blue";
     return;
   }
 
@@ -242,13 +245,14 @@ async function ensureUser(user) {
     const numberRef = doc(db, "pondNumbers", String(nextNumber));
 
     tx.set(userRef, {
-      uid: uid,
+      uid,
       number: nextNumber,
+      isAdmin,
       createdAt: serverTimestamp()
     });
 
     tx.set(numberRef, {
-      uid: uid,
+      uid,
       number: nextNumber,
       createdAt: serverTimestamp()
     });
@@ -260,9 +264,7 @@ async function ensureUser(user) {
 
     if (!stateSnap.exists()) {
       tx.set(stateRef, {
-        currentNumber: 1,
-        round: 1,
-        createdAt: serverTimestamp(),
+        currentCaller: null,
         updatedAt: serverTimestamp()
       });
     }
@@ -271,149 +273,211 @@ async function ensureUser(user) {
   });
 
   myNumberEl.textContent = pad(myNumber);
+  roleTextEl.textContent = isAdmin ? "관리자" : "참가자";
+  if (isAdmin) roleTextEl.className = "admin-blue";
 }
 
 function watchState() {
-  if (stateWatcherStarted) return;
-  stateWatcherStarted = true;
-
   const stateRef = doc(db, "pond", "state");
 
-  onSnapshot(stateRef, (snap) => {
+  onSnapshot(stateRef, async (snap) => {
     if (!snap.exists()) {
-      currentNumberEl.textContent = "생성 중...";
-      roundEl.textContent = "-";
+      currentCaller = null;
+      currentCallerEl.textContent = "없음";
+      renderWriteBox();
       return;
     }
 
     const data = snap.data();
+    currentCaller = data.currentCaller ?? null;
+    currentCallerEl.textContent = currentCaller ? pad(currentCaller) : "없음";
 
-    currentNumber = data.currentNumber || 1;
-    currentRound = data.round || 1;
-
-    currentNumberEl.textContent = pad(currentNumber);
-    roundEl.textContent = currentRound;
-
-    renderTurnBox();
-  }, (error) => {
-    console.error(error);
-    turnBox.innerHTML = `
-      <strong class="danger">상태 불러오기 실패</strong>
-      <p class="small">${escapeHTML(error.message)}</p>
-    `;
+    await checkUsed();
+    renderWriteBox();
   });
 }
 
-function renderTurnBox() {
-  if (!myNumber || !currentNumber) return;
+async function checkUsed() {
+  if (!myNumber) return;
 
-  if (myNumber === currentNumber) {
-    turnBox.innerHTML = `
-      <strong class="ok">당신의 차례입니다.</strong>
-      <p class="small">문장을 남긴 뒤, 다음 번호를 호명하십시오.</p>
-      <textarea id="commentInput" placeholder="연못에 남길 문장을 입력하세요."></textarea>
-      <input id="targetInput" type="number" placeholder="다음 번호 입력 예: 17" />
-      <button id="submitBtn">다음 사람 호명</button>
-    `;
+  const usedRef = doc(db, "pondUsedNumbers", String(myNumber));
+  const usedSnap = await getDoc(usedRef);
 
-    document.getElementById("submitBtn").addEventListener("click", submitTurn);
-  } else {
-    turnBox.innerHTML = `
-      <strong class="danger">아직 당신의 차례가 아닙니다.</strong>
-      <p class="small">현재 ${pad(currentNumber)} 이 응답해야 합니다.</p>
-    `;
-  }
+  isUsed = usedSnap.exists();
 }
 
-async function submitTurn() {
-  const commentInput = document.getElementById("commentInput");
-  const targetInput = document.getElementById("targetInput");
-  const submitBtn = document.getElementById("submitBtn");
+function renderWriteBox() {
+  if (!myNumber) return;
 
-  const content = commentInput.value.trim();
-  const targetNumber = Number(targetInput.value);
+  if (isAdmin) {
+    writeBox.innerHTML = `
+      <strong class="admin-blue">관리자 모드</strong>
+      <p class="small">
+        관리자 댓글은 언제든 작성 가능합니다.<br>
+        댓글 안에 #번호를 쓰면 그 번호가 현재 호명 번호로 설정됩니다.
+      </p>
+      <textarea id="commentInput" placeholder="관리자 댓글을 입력하세요. 예: #014"></textarea>
+      <button id="submitBtn">관리자 댓글 등록</button>
+    `;
+
+    document.getElementById("submitBtn").addEventListener("click", submitComment);
+    return;
+  }
+
+  if (isUsed) {
+    writeBox.innerHTML = `
+      <strong class="danger">이미 호명 완료되었습니다.</strong>
+      <p class="small">당신은 더 이상 댓글을 작성할 수 없습니다.</p>
+    `;
+    return;
+  }
+
+  if (currentCaller === myNumber) {
+    writeBox.innerHTML = `
+      <strong class="ok">당신이 호명되었습니다.</strong>
+      <p class="small">
+        다음 번호만 호명할 수 있습니다.<br>
+        댓글 안에 반드시 #번호를 포함해야 합니다.
+      </p>
+      <textarea id="commentInput" placeholder="예: #027"></textarea>
+      <button id="submitBtn">다음 번호 호명</button>
+    `;
+
+    document.getElementById("submitBtn").addEventListener("click", submitComment);
+    return;
+  }
+
+  writeBox.innerHTML = `
+    <strong>댓글 작성 가능</strong>
+    <p class="small">
+      아직 호명되지 않았습니다. 자유 댓글을 남길 수 있습니다.<br>
+      단, 당신의 댓글에 #번호가 있어도 호명으로 처리되지 않습니다.
+    </p>
+    <textarea id="commentInput" placeholder="댓글을 입력하세요."></textarea>
+    <button id="submitBtn">댓글 등록</button>
+  `;
+
+  document.getElementById("submitBtn").addEventListener("click", submitComment);
+}
+
+async function submitComment() {
+  const input = document.getElementById("commentInput");
+  const btn = document.getElementById("submitBtn");
+
+  const content = input.value.trim();
 
   if (!content) {
-    alert("문장을 입력하세요.");
+    alert("댓글을 입력하세요.");
     return;
   }
 
-  if (!targetNumber || targetNumber <= 0) {
-    alert("다음 번호를 입력하세요.");
-    return;
-  }
-
-  submitBtn.disabled = true;
-  submitBtn.textContent = "기록 중...";
+  btn.disabled = true;
+  btn.textContent = "등록 중...";
 
   try {
-    let savedRound = null;
+    const mentionedNumber = extractNumber(content);
 
     await runTransaction(db, async (tx) => {
       const stateRef = doc(db, "pond", "state");
-      const targetRef = doc(db, "pondNumbers", String(targetNumber));
-
       const stateSnap = await tx.get(stateRef);
-      const targetSnap = await tx.get(targetRef);
 
-      if (!stateSnap.exists()) {
-        throw new Error("연못 상태가 없습니다.");
+      const myUsedRef = doc(db, "pondUsedNumbers", String(myNumber));
+      const myUsedSnap = await tx.get(myUsedRef);
+
+      let latestCaller = null;
+
+      if (stateSnap.exists()) {
+        latestCaller = stateSnap.data().currentCaller ?? null;
       }
 
-      const state = stateSnap.data();
-
-      if (state.currentNumber !== myNumber) {
-        throw new Error("이미 차례가 넘어갔습니다.");
+      if (!isAdmin && myUsedSnap.exists()) {
+        throw new Error("이미 호명 완료되어 댓글을 작성할 수 없습니다.");
       }
 
-      if (!targetSnap.exists()) {
-        throw new Error("아직 존재하지 않는 번호입니다.");
+      let nextCaller = latestCaller;
+      let shouldMarkUsed = false;
+
+      if (isAdmin) {
+        if (mentionedNumber) {
+          const targetNumberRef = doc(db, "pondNumbers", String(mentionedNumber));
+          const targetNumberSnap = await tx.get(targetNumberRef);
+
+          if (!targetNumberSnap.exists()) {
+            throw new Error("아직 존재하지 않는 번호입니다.");
+          }
+
+          const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
+          const targetUsedSnap = await tx.get(targetUsedRef);
+
+          if (targetUsedSnap.exists()) {
+            throw new Error("이미 호명 완료된 번호입니다.");
+          }
+
+          nextCaller = mentionedNumber;
+        }
+      } else if (latestCaller === myNumber) {
+        if (!mentionedNumber) {
+          throw new Error("다음 번호를 #027 형식으로 호명해야 합니다.");
+        }
+
+        if (mentionedNumber === myNumber) {
+          throw new Error("자기 자신을 호명할 수 없습니다.");
+        }
+
+        const targetNumberRef = doc(db, "pondNumbers", String(mentionedNumber));
+        const targetNumberSnap = await tx.get(targetNumberRef);
+
+        if (!targetNumberSnap.exists()) {
+          throw new Error("아직 존재하지 않는 번호입니다.");
+        }
+
+        const targetUsedRef = doc(db, "pondUsedNumbers", String(mentionedNumber));
+        const targetUsedSnap = await tx.get(targetUsedRef);
+
+        if (targetUsedSnap.exists()) {
+          throw new Error("이미 호명 완료된 번호입니다.");
+        }
+
+        nextCaller = mentionedNumber;
+        shouldMarkUsed = true;
       }
 
-      savedRound = state.round || 1;
+      const commentRef = doc(collection(db, "pondComments"));
 
-      tx.update(stateRef, {
-        currentNumber: targetNumber,
-        round: increment(1),
-        updatedAt: serverTimestamp()
+      tx.set(commentRef, {
+        type: isAdmin ? "admin" : "user",
+        authorNumber: isAdmin ? null : myNumber,
+        content,
+        mentionedNumber: mentionedNumber || null,
+        createdAt: serverTimestamp()
       });
+
+      if (shouldMarkUsed) {
+        tx.set(myUsedRef, {
+          number: myNumber,
+          usedAt: serverTimestamp()
+        });
+      }
+
+      tx.set(stateRef, {
+        currentCaller: nextCaller,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
     });
 
-    await addDoc(collection(db, "pondComments"), {
-      type: "user",
-      authorNumber: myNumber,
-      targetNumber: targetNumber,
-      content: content,
-      round: savedRound,
-      createdAt: serverTimestamp()
-    });
-
-    const sentence = systemSentences[Math.floor(Math.random() * systemSentences.length)];
-
-    await addDoc(collection(db, "pondComments"), {
-      type: "system",
-      authorName: "관리자",
-      authorNumber: null,
-      targetNumber: targetNumber,
-      content: `${sentence}\n다음 대상은 ${pad(targetNumber)} 입니다.`,
-      round: savedRound,
-      createdAt: serverTimestamp()
-    });
-
-    commentInput.value = "";
-    targetInput.value = "";
+    input.value = "";
 
   } catch (error) {
     console.error(error);
     alert(error.message);
   }
 
-  submitBtn.disabled = false;
-  submitBtn.textContent = "다음 사람 호명";
+  btn.disabled = false;
+  btn.textContent = isAdmin ? "관리자 댓글 등록" : "댓글 등록";
 }
 
-function renderComments(list) {
-  const all = [...list, ...olderLoaded];
+function renderComments() {
+  const all = [...olderComments, ...liveComments];
 
   if (!all.length) {
     commentsEl.textContent = "아직 기록이 없습니다.";
@@ -421,29 +485,24 @@ function renderComments(list) {
   }
 
   commentsEl.innerHTML = all.map((c) => {
-    const name = c.type === "system"
-      ? `<span class="name system">관리자</span>`
-      : `<span class="name">${pad(c.authorNumber)}</span>`;
+    const isAdminComment = c.type === "admin";
+
+    const author = isAdminComment
+      ? `<span class="author admin">관리자</span>`
+      : `<span class="author">${pad(c.authorNumber)}</span>`;
 
     const content = escapeHTML(c.content).replaceAll("\n", "<br>");
-    const target = c.targetNumber ? `<div class="meta">호명: ${pad(c.targetNumber)}</div>` : "";
-    const roundText = c.round ? `<div class="meta">ROUND ${c.round}</div>` : "";
 
     return `
       <div class="comment">
-        ${name}<br>
+        ${author}<br>
         ${content}
-        ${target}
-        ${roundText}
       </div>
     `;
   }).join("");
 }
 
 function watchComments() {
-  if (commentWatcherStarted) return;
-  commentWatcherStarted = true;
-
   const q = query(
     collection(db, "pondComments"),
     orderBy("createdAt", "desc"),
@@ -451,26 +510,25 @@ function watchComments() {
   );
 
   onSnapshot(q, (snap) => {
-    liveComments = [];
+    const temp = [];
 
     snap.forEach((docSnap) => {
-      liveComments.push({
+      temp.push({
         id: docSnap.id,
         ...docSnap.data()
       });
     });
 
+    liveComments = temp.reverse();
     lastVisible = snap.docs[snap.docs.length - 1] || null;
+
+    renderComments();
 
     if (!lastVisible) {
       loadMoreBtn.disabled = true;
-      loadMoreBtn.textContent = "더 보기";
     } else {
       loadMoreBtn.disabled = false;
-      loadMoreBtn.textContent = "더 보기";
     }
-
-    renderComments(liveComments);
   }, (error) => {
     console.error(error);
     commentsEl.textContent = "기록 불러오기 실패: " + error.message;
@@ -498,41 +556,35 @@ async function loadMore() {
       return;
     }
 
+    const temp = [];
+
     snap.forEach((docSnap) => {
-      olderLoaded.push({
+      temp.push({
         id: docSnap.id,
         ...docSnap.data()
       });
     });
 
-    lastVisible = snap.docs[snap.docs.length - 1] || lastVisible;
+    olderComments = [...temp.reverse(), ...olderComments];
+    lastVisible = snap.docs[snap.docs.length - 1];
+
+    renderComments();
 
     loadMoreBtn.disabled = false;
     loadMoreBtn.textContent = "더 보기";
-
-    renderComments(liveComments);
 
   } catch (error) {
     console.error(error);
+    alert(error.message);
     loadMoreBtn.disabled = false;
     loadMoreBtn.textContent = "더 보기";
-    alert(error.message);
   }
 }
 
 loadMoreBtn.addEventListener("click", loadMore);
 
 onAuthStateChanged(auth, async (user) => {
-
-
-  onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    alert("아직 로그인 안 됨");
-    return;
-  }
-
-  alert("MY UID: " + user.uid);
-  console.log("MY UID:", user.uid);
+  if (!user) return;
 
   try {
     await ensureUser(user);
@@ -540,22 +592,20 @@ onAuthStateChanged(auth, async (user) => {
     watchComments();
   } catch (error) {
     console.error(error);
-
-    turnBox.innerHTML = `
+    writeBox.innerHTML = `
       <strong class="danger">접속 실패</strong>
       <p class="small">${escapeHTML(error.message)}</p>
     `;
-
-    commentsEl.textContent = "Firebase 연결 실패";
   }
 });
 
-signInAnonymously(auth)
-  .then((result) => {
-    alert("익명 로그인 성공 UID: " + result.user.uid);
-    console.log("익명 로그인 성공 UID:", result.user.uid);
-  })
-  .catch((error) => {
-    alert("익명 로그인 실패: " + error.message);
-    console.error(error);
-  });
+signInAnonymously(auth).catch((error) => {
+  console.error(error);
+  writeBox.innerHTML = `
+    <strong class="danger">익명 로그인 실패</strong>
+    <p class="small">${escapeHTML(error.message)}</p>
+  `;
+});
+</script>
+</body>
+</html>
